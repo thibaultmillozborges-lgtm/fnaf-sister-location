@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Sister Location - Mini Jeu Web</title>
+  <style>
+    body {
+      background-color: #09090d;
+      color: #e0e0e0;
+      font-family: 'Courier New', Courier, monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      user-select: none;
+    }
+    #ecran {
+      width: 600px;
+      height: 360px;
+      background: radial-gradient(circle, #1c1f2b 0%, #050508 100%);
+      border: 3px solid #333;
+      border-radius: 8px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: 0 0 25px rgba(0, 150, 255, 0.15);
+      position: relative;
+      overflow: hidden;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 1.2em;
+      font-weight: bold;
+      color: #4da6ff;
+    }
+    #zone-visuelle {
+      text-align: center;
+      font-size: 1.3em;
+      padding: 20px;
+      min-height: 120px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      border: 1px dashed #2a2e3d;
+      background-color: rgba(0, 0, 0, 0.4);
+      transition: background-color 0.2s;
+    }
+    .controles {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    button {
+      background-color: #1a1d26;
+      color: #fff;
+      border: 2px solid #4da6ff;
+      padding: 12px;
+      font-family: inherit;
+      font-size: 1em;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: 0.1s;
+    }
+    button:hover { background-color: #2b3245; }
+    button:active { transform: scale(0.98); }
+    .btn-choc { border-color: #ffcc00; color: #ffcc00; }
+    .btn-choc:hover { background-color: #332b00; }
+    .flash-lumiere { background-color: #3b4259 !important; }
+    .flash-choc { background-color: #665200 !important; }
+    .jumpscare { background-color: #660000 !important; color: #ff4444; font-size: 1.6em; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+  <div id="ecran">
+    <div class="header">
+      <span id="affichage-heure">12:00 AM</span>
+      <span id="affichage-energie">Énergie : 100%</span>
+    </div>
+
+    <div id="zone-visuelle">
+      <div id="statut-texte">Tu es dans le Control Module.<br>Surveille Ballora et Funtime Foxy.</div>
+    </div>
+
+    <div class="controles" id="boutons-jeu">
+      <button onclick="verifierVitre('Ballora')">💡 Lumière Ballora (Gauche)</button>
+      <button onclick="verifierVitre('Funtime Foxy')">💡 Lumière Foxy (Droite)</button>
+      <button class="btn-choc" onclick="envoyerDecharge('Ballora')">⚡ Décharge Ballora</button>
+      <button class="btn-choc" onclick="envoyerDecharge('Funtime Foxy')">⚡ Décharge Foxy</button>
+    </div>
+  </div>
+
+  <script>
+    // --- VARIABLES DU JEU ---
+    let heure = 0;
+    let energie = 100;
+    let jeuActif = true;
+
+    // État des animatroniques (0 = calme, 1 = agité, 2 = prêt à attaquer)
+    let dangerBallora = 0;
+    let dangerFoxy = 0;
+
+    const texte = document.getElementById("statut-texte");
+    const zone = document.getElementById("zone-visuelle");
+
+    // --- GÉNÉRATEUR DE BRUITAGES (Sans fichier MP3 requis) ---
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function jouerSon(frequence, duree, type = 'sine') {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.value = frequence;
+      gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      setTimeout(() => osc.stop(), duree);
+    }
+
+    // --- ACTIONS DU JOUEUR ---
+    function verifierVitre(nom) {
+      if (!jeuActif || energie <= 0) return;
+      utiliserEnergie(3);
+      jouerSon(400, 150, 'triangle');
+      
+      zone.classList.add("flash-lumiere");
+      setTimeout(() => zone.classList.remove("flash-lumiere"), 300);
+
+      let niveauDanger = (nom === 'Ballora') ? dangerBallora : dangerFoxy;
+
+      if (niveauDanger === 0) {
+        texte.innerHTML = `💡 ${nom} est calme sur sa scène.`;
+      } else if (niveauDanger === 1) {
+        texte.innerHTML = `⚠️ ${nom} s'approche de la vitre ! Prépare une décharge.`;
+      } else {
+        texte.innerHTML = `🚨 ALERTE ! ${nom} est juste devant la vitre ! ENVOIE UNE DÉCHARGE !`;
+      }
+    }
+
+    function envoyerDecharge(nom) {
+      if (!jeuActif || energie <= 0) return;
+      utiliserEnergie(8);
+      jouerSon(120, 400, 'sawtooth');
+
+      zone.classList.add("flash-choc");
+      setTimeout(() => zone.classList.remove("flash-choc"), 300);
+
+      if (nom === 'Ballora') dangerBallora = 0;
+      if (nom === 'Funtime Foxy') dangerFoxy = 0;
+
+      texte.innerHTML = `⚡ BZZZT ! Décharge envoyée sur ${nom}.<br>Retour sur sa scène.`;
+    }
+
+    function utiliserEnergie(cout) {
+      energie = Math.max(0, energie - cout);
+      document.getElementById("affichage-energie").innerText = `Énergie : ${energie}%`;
+      if (energie === 0) {
+        texte.innerHTML = "🪫 Plus d'énergie ! Les systèmes sont coupés...";
+      }
+    }
+
+    // --- INTELLIGENCE ARTIFICIELLE (Toutes les 4 secondes) ---
+    const boucleIA = setInterval(() => {
+      if (!jeuActif) return;
+
+      // Progression aléatoire de Ballora
+      if (Math.random() > 0.45) {
+        dangerBallora++;
+        if (dangerBallora > 2) declencherGameOver("Ballora");
+      }
+
+      // Progression aléatoire de Funtime Foxy
+      if (Math.random() > 0.5) {
+        dangerFoxy++;
+        if (dangerFoxy > 2) declencherGameOver("Funtime Foxy");
+      }
+    }, 4000);
+
+    // --- HORLOGE (1 heure = 20 secondes pour tester rapidement) ---
+    const boucleTemps = setInterval(() => {
+      if (!jeuActif) return;
+      heure++;
+      document.getElementById("affichage-heure").innerText = `${heure}:00 AM`;
+
+      if (heure === 6) {
+        jeuActif = false;
+        clearInterval(boucleIA);
+        clearInterval(boucleTemps);
+        jouerSon(600, 800, 'sine');
+        texte.innerHTML = "🎉 6:00 AM ! Tu as survécu à ton service !";
+        document.getElementById("boutons-jeu").innerHTML = "<button onclick='location.reload()' style='grid-column: span 2;'>Rejouer</button>";
+      }
+    }, 20000);
+
+    function declencherGameOver(tueur) {
+      jeuActif = false;
+      clearInterval(boucleIA);
+      clearInterval(boucleTemps);
+      jouerSon(80, 1000, 'sawtooth');
+      zone.classList.add("jumpscare");
+      texte.innerHTML = `💀 JUMPSCARE !<br>${tueur} t'a attrapé !`;
+      document.getElementById("boutons-jeu").innerHTML = "<button onclick='location.reload()' style='grid-column: span 2;'>Recommencer la nuit</button>";
+    }
+  </script>
+</body>
+</html>
